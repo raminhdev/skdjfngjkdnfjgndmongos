@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Monjo</RootNamespace>
+    <PackageId>Monjo.Core</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Monjo</Authors>
+    <Description>
+      Provider-agnostic persistence core for Monjo: query model (MonjoQuery), result model
+      (MonjoFilteredResult), common repository contract, entity metadata, options, provider
+      registry and DI wiring. Monjo.Core has NO dependency on MongoDB.Driver, Npgsql,
+      Microsoft.Data.Sqlite, EF Core or Dapper.
+    </Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Abstractions only: no functional framework code, keeps the footprint minimal. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Monjo.MongoDB" />
+    <InternalsVisibleTo Include="Monjo.Sql" />
+    <InternalsVisibleTo Include="Monjo.PostgreSQL" />
+    <InternalsVisibleTo Include="Monjo.SQLite" />
+    <InternalsVisibleTo Include="Monjo.Tests" />
+    <InternalsVisibleTo Include="Monjo.Benchmarks" />
+  </ItemGroup>
+
+</Project>

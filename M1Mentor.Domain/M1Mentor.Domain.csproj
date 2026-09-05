@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -8,6 +8,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Utilities\Utilities.csproj" />
+    <!-- Monjo persistence: entities inherit BaseDocument (legacy Mongo base, preserved) and
+         repositories derive from MonjoRepository<T> / the common IMonjoRepository<T>. -->
+    <ProjectReference Include="..\Monjo\src\Monjo.Core\Monjo.Core.csproj" />
+    <ProjectReference Include="..\Monjo\src\Monjo.MongoDB\Monjo.MongoDB.csproj" />
   </ItemGroup>
 
 </Project>

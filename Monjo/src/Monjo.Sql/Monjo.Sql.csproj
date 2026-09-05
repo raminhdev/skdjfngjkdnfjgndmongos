@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Monjo.Sql</RootNamespace>
+    <!-- Internal engine shared by the SQL providers. Not published as a NuGet package:
+         consumers get it transitively through Monjo.PostgreSQL / Monjo.SQLite.
+         Uses only System.Data.Common (part of the shared framework) — no provider packages. -->
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Monjo.Core\Monjo.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Monjo.PostgreSQL" />
+    <InternalsVisibleTo Include="Monjo.SQLite" />
+    <InternalsVisibleTo Include="Monjo.Tests" />
+  </ItemGroup>
+
+</Project>

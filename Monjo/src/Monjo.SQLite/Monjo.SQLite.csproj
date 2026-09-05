@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Monjo.SQLite</RootNamespace>
+    <PackageId>Monjo.SQLite</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Monjo</Authors>
+    <Description>
+      Monjo SQLite provider: Microsoft.Data.Sqlite with connection pooling, WAL journal mode,
+      busy-timeout handling and parameterized SQL. Optimized for embedded/local workloads.
+      Depends only on Monjo.Core, Monjo.Sql and Microsoft.Data.Sqlite.
+    </Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Monjo.Core\Monjo.Core.csproj" />
+    <ProjectReference Include="..\Monjo.Sql\Monjo.Sql.csproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.3" />
+  </ItemGroup>
+
+</Project>

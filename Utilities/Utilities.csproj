@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -6,7 +6,6 @@
     <Nullable>disable</Nullable>
     <RootNamespace>Utilities</RootNamespace>
   </PropertyGroup>
-
 
 
 	<ItemGroup>
@@ -45,11 +44,19 @@
 		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="7.3.2" />
 		<PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="8.0.2" />
 		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.3" />
-		<PackageReference Include="MongoDB.Driver" Version="3.4.2" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="Telegram.Bot" Version="22.6.2" />
 	</ItemGroup>
 
-
+	<!--
+	  Monjo persistence: the MongoDatabase folder moved into the Monjo.MongoDB package.
+	  Utilities keeps the legacy namespaces compiling (they resolve into Monjo.Core / Monjo.MongoDB)
+	  and uses the Mongo provider for GridFS file storage. MongoDB.Driver now flows transitively
+	  from Monjo.MongoDB (kept out of the dependency list above on purpose).
+	-->
+	<ItemGroup>
+		<ProjectReference Include="..\Monjo\src\Monjo.Core\Monjo.Core.csproj" />
+		<ProjectReference Include="..\Monjo\src\Monjo.MongoDB\Monjo.MongoDB.csproj" />
+	</ItemGroup>
 
 </Project>

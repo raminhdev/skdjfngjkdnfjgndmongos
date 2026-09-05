@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Monjo.Core\Monjo.Core.csproj" />
+    <ProjectReference Include="..\..\src\Monjo.MongoDB\Monjo.MongoDB.csproj" />
+    <ProjectReference Include="..\..\src\Monjo.PostgreSQL\Monjo.PostgreSQL.csproj" />
+    <ProjectReference Include="..\..\src\Monjo.SQLite\Monjo.SQLite.csproj" />
+  </ItemGroup>
+
+</Project>

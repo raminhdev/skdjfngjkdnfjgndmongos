@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
@@ -16,8 +16,6 @@ using Utilities.Exceptions;
 using Utilities.Exceptions.Common;
 using Utilities.Extensions;
 using Utilities.Models.Settings;
-using Utilities.MongoDatabase;
-using Utilities.MongoDatabase.Contracts;
 using Utilities.Services;
 
 namespace Utilities.Configuration
@@ -117,7 +115,8 @@ namespace Utilities.Configuration
 
         public static void AddCoreSettings(this IServiceCollection services, IConfiguration configuration)
         {
-            services.RegisterSetting<MonjoSettings, IMonjoSettings>(configuration.GetSection(nameof(MonjoSettings)));
+            // Monjo settings are bound by services.AddMonjo(configuration) into MonjoOptions,
+            // which also reads the legacy "MonjoSettings" section for compatibility.
 
             services.RegisterSetting<ApplicationPoolSettings>(configuration.GetSection(nameof(ApplicationPoolSettings)));
 

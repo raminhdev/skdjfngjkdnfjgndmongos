@@ -3,8 +3,6 @@ using M1Mentor.Utilities.Services;
 using Microsoft.Extensions.Options;
 using Utilities.Constants;
 using Utilities.Models.Settings;
-using Utilities.MongoDatabase;
-using Utilities.MongoDatabase.Contracts;
 using Utilities.Services;
 
 namespace M1Mentor.Api.Utilities.Configurations
@@ -13,8 +11,8 @@ namespace M1Mentor.Api.Utilities.Configurations
     {
         public static void AddSettings(this IServiceCollection services, IConfiguration configuration)
         {
-
-            services.RegisterSetting<MonjoSettings, IMonjoSettings>(configuration.GetSection(nameof(MonjoSettings)));
+            // Monjo settings are bound by services.AddMonjo(configuration) into MonjoOptions,
+            // which also reads the legacy "MonjoSettings" section for compatibility.
 
             services.RegisterSetting<ApplicationPoolSettings>(configuration.GetSection(nameof(ApplicationPoolSettings)));
 

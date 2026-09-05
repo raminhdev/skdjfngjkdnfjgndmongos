@@ -1,4 +1,4 @@
-﻿namespace Utilities.Utilities;
+namespace Utilities.Utilities;
 
 public static class PaginationHelper
 {
@@ -16,9 +16,4 @@ public static class PaginationHelper
     }
 }
 
-public class ManualPaginationResult<Type>
-{
-    public int PageCount { get; set; }
-    public int TotalCount { get; set; }
-    public List<Type> Data { get; set; }
-}
+// ManualPaginationResult<Type> moved to Monjo.Core (namespace Utilities.Utilities preserved).

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Monjo.PostgreSQL</RootNamespace>
+    <PackageId>Monjo.PostgreSQL</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Monjo</Authors>
+    <Description>
+      Monjo PostgreSQL provider: native Npgsql connection pooling, fully asynchronous I/O,
+      parameterized SQL, server-side filtering/sorting/pagination. Depends only on Monjo.Core,
+      Monjo.Sql and Npgsql — no EF Core, no Dapper.
+    </Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Monjo.Core\Monjo.Core.csproj" />
+    <ProjectReference Include="..\Monjo.Sql\Monjo.Sql.csproj" />
+    <PackageReference Include="Npgsql" Version="9.0.3" />
+  </ItemGroup>
+
+</Project>
