@@ -1,0 +1,55 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Utilities</RootNamespace>
+  </PropertyGroup>
+
+
+
+	<ItemGroup>
+		<Compile Update="Exceptions\CommonExceptionMessages.Designer.cs">
+			<DependentUpon>CommonExceptionMessages.resx</DependentUpon>
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+		</Compile>
+        <Compile Update="Exceptions\ExceptionMessages.Designer.cs">
+            <DependentUpon>ExceptionMessages.resx</DependentUpon>
+            <DesignTime>True</DesignTime>
+            <AutoGen>True</AutoGen>
+        </Compile>
+        <EmbeddedResource Update="Exceptions\CommonExceptionMessages.resx">
+            <LastGenOutput>CommonExceptionMessages.Designer.cs</LastGenOutput>
+            <Generator>PublicResXFileCodeGenerator</Generator>
+        </EmbeddedResource>
+        <EmbeddedResource Update="Exceptions\ExceptionMessages.resx">
+            <LastGenOutput>ExceptionMessages.Designer.cs</LastGenOutput>
+            <Generator>PublicResXFileCodeGenerator</Generator>
+        </EmbeddedResource>
+	</ItemGroup>
+
+
+	<ItemGroup>
+		<PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+		<PackageReference Include="MailKit" Version="4.13.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.3.0" />
+		<PackageReference Include="MimeKit" Version="4.13.0" />
+		<PackageReference Include="Minio" Version="6.0.5" />
+		<PackageReference Include="NPOI" Version="2.7.4" />
+		<PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
+		<PackageReference Include="Asp.Versioning.Mvc" Version="8.1.0" />
+		<PackageReference Include="Autofac.Extensions.DependencyInjection" Version="10.0.0" />
+		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="7.3.2" />
+		<PackageReference Include="Swashbuckle.AspNetCore.Filters" Version="8.0.2" />
+		<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.3" />
+		<PackageReference Include="MongoDB.Driver" Version="3.4.2" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="Telegram.Bot" Version="22.6.2" />
+	</ItemGroup>
+
+
+
+</Project>

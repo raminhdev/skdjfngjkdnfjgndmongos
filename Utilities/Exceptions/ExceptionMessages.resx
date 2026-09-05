@@ -1,0 +1,318 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ActiveAccountCanBeEdited" xml:space="preserve">
+    <value>فقط اکانت کاربران فعال قابل ویرایش </value>
+  </data>
+  <data name="ActiveFestivalCanBeUpdated" xml:space="preserve">
+    <value>فقط جشنواره فعال را میتوان اپدیت کرد </value>
+  </data>
+  <data name="ActiveOrderExistsForUser" xml:space="preserve">
+    <value>برای این کاربر سفارش فعال وجود دارد.</value>
+  </data>
+  <data name="ActiveUserCanBeBanned" xml:space="preserve">
+    <value>فقط اکانت کاربران فعال قابل مسدود شدن میباشد </value>
+  </data>
+  <data name="ActiveUserPasswordCanBeChanged" xml:space="preserve">
+    <value>فقط گذرواژه اکانت کاربران فعال را میتوان تغییر داد </value>
+  </data>
+  <data name="AdviceAlreadyAnswerd" xml:space="preserve">
+    <value>این نظر قبلا پاسخ داده شده است </value>
+  </data>
+  <data name="AdviceNotFound" xml:space="preserve">
+    <value>درخواست مشاوره یافت نشد</value>
+  </data>
+  <data name="AtLeastOneSessionRequired" xml:space="preserve">
+    <value>حداقل یک جلسه باید وارد شود</value>
+  </data>
+  <data name="BodyDetailNotFound" xml:space="preserve">
+    <value>مشخصات بدن یافت نشد </value>
+  </data>
+  <data name="CannotCreatePlan" xml:space="preserve">
+    <value>امکان ایجاد این برنامه وجود ندارد</value>
+  </data>
+  <data name="CannotDeleteActiveUser" xml:space="preserve">
+    <value>کاربر فعال را نمی توان پاک کرد </value>
+  </data>
+  <data name="CannotDeletePaidOrder" xml:space="preserve">
+    <value>سفارش قبلاً پرداخت شده و قابل حذف نیست.</value>
+  </data>
+  <data name="CannotDeleteUsedBodyDetail" xml:space="preserve">
+    <value>برای این اطلاعات برنامه ای ثبت شده است</value>
+  </data>
+  <data name="CannotDeleteUsedMovement" xml:space="preserve">
+    <value>حرکتی که در برنامه ای استفاده شاده باشد </value>
+  </data>
+  <data name="CategoryCantBeItsOwnParent" xml:space="preserve">
+    <value>حرکت نمی تواند وارث خود باشد </value>
+  </data>
+  <data name="CodeExpired" xml:space="preserve">
+    <value>کد تایید منقضی شده است </value>
+  </data>
+  <data name="CodeIsWrong" xml:space="preserve">
+    <value>کد تایید اشتباه میباشد </value>
+  </data>
+  <data name="DietPlanAlreadyExsist" xml:space="preserve">
+    <value>برنامه غذایی در حال حاضر وجود دارد </value>
+  </data>
+  <data name="DietPlanNotFound" xml:space="preserve">
+    <value>برنامه غذایی یافت نشد </value>
+  </data>
+  <data name="DIetPlanUsedInPlan" xml:space="preserve">
+    <value>این برنامه غذایی در یک برنامه ثبت شده است </value>
+  </data>
+  <data name="DiscountCannotBeLessThan" xml:space="preserve">
+    <value>تخفیف نمیتواند کمتر از 0 درصد باشد </value>
+  </data>
+  <data name="DiscountCannotBeMoreThan" xml:space="preserve">
+    <value>تخفیف نمیتواند بیشتر از 100 درصد باشد </value>
+  </data>
+  <data name="DuplicateMovementInDestenationParrent" xml:space="preserve">
+    <value>در دسته بندی مورد نظر حرکتی با چنین مشخصات ثبت شده است</value>
+  </data>
+  <data name="DuplicateRegister" xml:space="preserve">
+    <value>کاربری با این شماره همراه قبلا ثبت نام کرده است </value>
+  </data>
+  <data name="FestivalNotFound" xml:space="preserve">
+    <value>فستیوال یافت نشد </value>
+  </data>
+  <data name="InvalidSessionSequence" xml:space="preserve">
+    <value>ترتیب جلسات نادرست است. شماره جلسه مورد انتظار: {0}، اما شماره وارد شده: {1}</value>
+  </data>
+  <data name="MovementAlredyExsists" xml:space="preserve">
+    <value>حرکت با چنین مشخصات وجود دارد </value>
+  </data>
+  <data name="MovementCategoryAlreadyEsist" xml:space="preserve">
+    <value>این دسته بندی قبلا ثبت شده است </value>
+  </data>
+  <data name="MovementCategoryNotFound" xml:space="preserve">
+    <value>دسته بندی یافت نشد</value>
+  </data>
+  <data name="MovementNotFound" xml:space="preserve">
+    <value>حرکت یافت نشد </value>
+  </data>
+  <data name="SomeMovementsNotFound" xml:space="preserve">
+    <value>بعضی از حرکات در دسترس نمی باشند</value>
+  </data>
+  <data name="NotAllrepetitionsEntered" xml:space="preserve">
+    <value>تعداد تکرار برای همه ست ها وارد نشده </value>
+  </data>
+  <data name="OldPasswordIsWrong" xml:space="preserve">
+    <value>گذرواژه قدیمی اشتباه است </value>
+  </data>
+  <data name="OnlyOneActiveFestivalCanExsist" xml:space="preserve">
+    <value>تنها یک جشنواره فعال میتوان داشت </value>
+  </data>
+  <data name="OrderAlreadyPaid" xml:space="preserve">
+    <value>سفارش قبلاً پرداخت شده و قابل ویرایش نیست.</value>
+  </data>
+  <data name="OrderDoesNotHavePlan" xml:space="preserve">
+    <value>برای این سفارش، برنامه‌ای ثبت نشده است</value>
+  </data>
+  <data name="OrderExpired" xml:space="preserve">
+    <value>سفارش شما منقضی شده است</value>
+  </data>
+  <data name="OrderInvalidStateForPayment" xml:space="preserve">
+    <value>امکان ثبت پرداخت برای این سفارش وجود ندارد.</value>
+  </data>
+  <data name="OrderNotFound" xml:space="preserve">
+    <value>سفارش یافت نشد</value>
+  </data>
+  <data name="OrderUsed" xml:space="preserve">
+    <value>از تمام خدمات پلن خود استفاده کرده‌اید</value>
+  </data>
+  <data name="ParentCategoryCanntBeDeleted" xml:space="preserve">
+    <value>دسته بندی که ریشه یک دسته بندی دیگر باشد را نمی توان حذف کرد </value>
+  </data>
+  <data name="ParentMovementCategoryNotFound" xml:space="preserve">
+    <value>دسته بندی والد یافت نشده </value>
+  </data>
+  <data name="PaswordSend" xml:space="preserve">
+    <value>گذرواژه یکبار مصرف هر 5 دقیقه یکبار میتوان ارسال شود </value>
+  </data>
+  <data name="PayOrder" xml:space="preserve">
+    <value>لطفاً ابتدا سفارش خود را پرداخت کنید</value>
+  </data>
+  <data name="PendingDepositNotFound" xml:space="preserve">
+    <value>واریزی در حال انتظار یافت نشد.</value>
+  </data>
+  <data name="PhoneNumberIsActive" xml:space="preserve">
+    <value>شماره همراه قبلا تایید شده است </value>
+  </data>
+  <data name="PhoneNumberNotActive" xml:space="preserve">
+    <value>شماره کاربر تایید نشده است </value>
+  </data>
+  <data name="PlanNotFound" xml:space="preserve">
+    <value>برنامه‌ای با این شناسه یافت نشد</value>
+  </data>
+  <data name="RelatedOrderNotFound" xml:space="preserve">
+    <value>سفارشی با این مرجع پرداخت و وضعیت معتبر یافت نشد</value>
+  </data>
+  <data name="RepetitionsCannotBe" xml:space="preserve">
+    <value>تعداد تکرار نمی تواند کمتر از 0 باشد </value>
+  </data>
+  <data name="RoleNotFound" xml:space="preserve">
+    <value>نقش یافت نشد </value>
+  </data>
+  <data name="SessionNotFound" xml:space="preserve">
+    <value>جلسه مورد نظر یافت نشد</value>
+  </data>
+  <data name="SetsCannotBe" xml:space="preserve">
+    <value>تعداد ست نمی تواند بیشتر از 60 یا کمتر از 0 باشد </value>
+  </data>
+  <data name="SMSTime" xml:space="preserve">
+    <value>اس ام اس هر 2 دقیقه یک بار میتواند ارسال شود </value>
+  </data>
+  <data name="SupersetNotSet" xml:space="preserve">
+    <value>برای این حرکت، سوپرست مشخص نشده است</value>
+  </data>
+  <data name="TariffAlreadyExsist" xml:space="preserve">
+    <value>این تعریف قبلا ثبت شده است </value>
+  </data>
+  <data name="TariffDurationNotSet" xml:space="preserve">
+    <value>مدت تعرفه مشخص نشده </value>
+  </data>
+  <data name="TariffIsUsedInOrder" xml:space="preserve">
+    <value>این تعریف در سفارشی استفاده شده است </value>
+  </data>
+  <data name="TariffNotFound" xml:space="preserve">
+    <value>تعرفه یافت نشد </value>
+  </data>
+  <data name="ThisCategoryIsUsedInMovement" xml:space="preserve">
+    <value>این دسته بندی در یکی از حرکت ها استفاده شده است </value>
+  </data>
+  <data name="UserCannotAccessOrder" xml:space="preserve">
+    <value>کاربر اجازه دسترسی به این سفارش را ندارد.</value>
+  </data>
+  <data name="UserCannotAccessThis" xml:space="preserve">
+    <value>امکان دسترسی برای کاربر ممکن نسیت</value>
+  </data>
+  <data name="UserDontHaveActiveOrdrer" xml:space="preserve">
+    <value>کاربر درحال حاضر سفارش فعالی ندارد</value>
+  </data>
+  <data name="UserIsBan" xml:space="preserve">
+    <value>اکانت کاربر مسدود میباشد </value>
+  </data>
+  <data name="UserNotFound" xml:space="preserve">
+    <value>کاربر یافت نشد </value>
+  </data>
+  <data name="UseValidLink" xml:space="preserve">
+    <value>لطفا از لینک معتبر استفاده کنید</value>
+  </data>
+</root>

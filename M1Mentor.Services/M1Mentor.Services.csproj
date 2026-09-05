@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\M1Mentor.Domain\M1Mentor.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="_Common\Contracts\" />
+    <Folder Include="_Common\DTOs\Updates\" />
+  </ItemGroup>
+
+</Project>

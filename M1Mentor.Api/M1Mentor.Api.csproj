@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>disable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>14</LangVersion>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <RootNamespace>M1Mentor.Api</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Utilities\Utilities.csproj" />
+        <ProjectReference Include="..\M1Mentor.Domain\M1Mentor.Domain.csproj"/>
+        <ProjectReference Include="..\M1Mentor.Services\M1Mentor.Services.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="Controllers\.DS_Store"/>
+        <Content Include="Utilities\.DS_Store"/>
+    </ItemGroup>
+
+</Project>

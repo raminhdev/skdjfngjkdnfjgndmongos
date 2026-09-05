@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------
+  # سرویس بک‌اند دات‌نت IPTV
+  # ----------------------------------------------------------
+  iptv-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iptv_api_container
+    restart: always
+    ports:
+      - "5115:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development 
+      - MonjoSettings__ConnectionString=mongodb://iptv_mongodb:27017/iptv?retryWrites=true
+      - MonjoSettings__DatabaseName=iptv
+      - StreamProxySettings__Enabled=true
+      - StreamProxySettings__WorkerUrl=https://iptv-proxy.YOUR_SUBDOMAIN.workers.dev
+    depends_on:
+      - iptv-mongo
+    networks:
+      - iptv-network
+
+networks:
+  iptv-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
