@@ -210,6 +210,14 @@ for duplicate providers). The app optionally resolves `IMonjoProvider` eagerly i
 Column references accept property names, physical column names, or the legacy
 `Type.Prefix.Name` form; unresolvable references fail fast naming the entity.
 
+**Parameter binding** — every bound value (filter operands, `@Id`, update-column values,
+audit stamps, `@MonjoLimit/@MonjoOffset`) is converted at bind time through
+`SqlValueConverters.ToDb` (enum → its name; DateTime → normalized UTC) plus the dialect's
+`ToDbValue` (SQLite: Guid → "N" text, decimal → the sortable encoding). A bound value
+therefore always uses exactly the stored representation — an unconverted enum or a
+"D"-format Guid bound to SQLite would never match a stored row; this conversion is the
+single choke point (`SqlOperationContext.AddParameter`) shared by every SQL statement.
+
 ## Part 9 — MongoDB provider strategy
 
 - **Native driver everywhere.** Reads are `Find` (+`Sort`/`Skip`/`Limit`) with the
@@ -249,15 +257,29 @@ Column references accept property names, physical column names, or the legacy
 
 ## Part 11 — SQLite provider strategy
 
-- **Microsoft.Data.Sqlite** with pooling; `WAL` journal mode set once per database
-  (readers stay concurrent; single writer — the engine surfaces `busy`/`locked` as
-  `MonjoBusyException` with configuration guidance).
+- **Microsoft.Data.Sqlite** with pooling; `WAL` journal mode set once per process per
+  database (readers stay concurrent; single writer — the engine surfaces `busy`/`locked` as
+  `MonjoBusyException` with configuration guidance). `PRAGMA journal_mode=WAL` returns a
+  result row, so the pragma is executed as a reader and the row consumed — not via
+  `ExecuteNonQueryAsync`, whose behavior on row-producing statements is not relied upon.
 - **Type affinity mapping:** INTEGER (bools as 0/1, numerics), REAL (double/float), TEXT
-  (string, enum by name, decimal, **DateTime as UTC text**, Guid as "N" text), BLOB.
+  (string, enum by name, **decimal in a fixed-width sortable encoding** — see below,
+  **DateTime as UTC text**, Guid as "N" text), BLOB.
 - **DateTime correctness:** writes are UTC-normalized; reads parse the stored text with
   `AssumeUniversal` (a `ReadsDateTimeAsText` dialect flag) because
   `Microsoft.Data.Sqlite.GetDateTime` would misinterpret stored UTC as local time — a
   round-trip bug explicitly handled in review.
+- **Decimal correctness (sortable TEXT encoding):** plain decimal TEXT would compare
+  lexicographically in SQLite (`"9.5" > "30"`) and be scale-sensitive (`12.5 ≠ 12.50`),
+  breaking equality, `<`/`>` comparisons and `ORDER BY`. Instead each value is stored as
+  a 58-character string: a sign character (`1` non-negative, `0` negative) + 29
+  zero-padded integer digits + 28 zero-padded fraction digits, with the 57 digits
+  9's-complemented for negatives. Properties: lexicographic order == numeric order,
+  canonical form (12.5 ≡ 12.50), and lossless for every .NET decimal (96-bit mantissa,
+  scale 0..28 — the encoding's 57-digit field is a strict superset). Reads decode it
+  back exactly (a `ReadsDecimalAsText` dialect flag); writes bind the same encoding.
+- **`Contains` note:** SQLite's `LIKE` is case-insensitive for ASCII (PostgreSQL's is not)
+  — a documented cross-provider difference, see the table in `Monjo/docs/ARCHITECTURE.md`.
 - `DefaultTimeout` = busy timeout (option, default 5 s); command timeout = busy + 15 s.
 - `:memory:` and file data sources both work through the same dialect (the readiness gate
   keys on the connection string, i.e. the actual database identity).
@@ -341,6 +363,16 @@ Not done (and why):
   one native bulk path both engines need).
 - No materialized views / read models — out of scope for a persistence library.
 
+**Contrast with the application's FileStorage resolver (same philosophy, sharper edges):**
+FileStorage's storage-provider resolver constructor-injects **all four** backend
+implementations (Mongo/GridFS, PostgreSQL, Azure blob, local disk) eagerly and then
+delegates to the selected one — every app pays for constructing the providers it never
+uses, and the resolver is a forwarding layer over the injected set. Monjo's
+`MonjoProviderRegistration` keeps the same startup-once, config-driven selection but
+constructs **only the selected provider** (the unselected providers' assemblies are never
+referenced or loaded — provider isolation), and there is no forwarding indirection:
+`IMonjoProvider`/`IMonjoConnection` resolve to the concrete selected provider directly.
+
 ## Part 16 — Memory & allocations on the hot path
 
 Per SQL operation: the translated WHERE/ORDER fragments (short-lived strings), the
@@ -349,7 +381,11 @@ entity object itself (unavoidable) via one compiled delegate. No per-row `Dictio
 no per-row reflection, no LINQ query objects, no per-call expression trees.
 Per Mongo operation: one filter tree (small object graph the driver renders) + the
 documents. Ambient reads (actor, transaction) allocate nothing. The `EntityReadinessGate`
-post-warmup cost is one dictionary lookup + awaiting a completed task (no allocation).
+post-warmup cost is **zero allocations**: the per-type gate key + work delegate are cached
+on the connection (built once per type), so each operation's readiness check is a
+`TryGetValue` on that cache, a `TryGetValue` + `IsCompleted` check in the gate, and a
+return of `Task.CompletedTask` (no per-call lambda, closure or key-string construction;
+the gate allocates one small entry per key per process, on the first call only).
 
 ## Part 17 — Backward-compatibility decisions
 
@@ -438,21 +474,33 @@ Full detail: [`Monjo/docs/MIGRATION.md`](Monjo/docs/MIGRATION.md). The five step
 ## Part 21 — Benchmark suite (plan; results pending a buildable environment)
 
 `Monjo/benchmarks/Monjo.Benchmarks` (BenchmarkDotNet 0.14, `MemoryDiagnoser` for
-allocations): 1,000-row seed, then per provider (SQLite always; Mongo/PG when
-`MONGO_CONNECTION_STRING` / `MONJO_PG_CONNECTION_STRING` are set):
+allocations), per provider (SQLite always; Mongo/PG when `MONGO_CONNECTION_STRING` /
+`MONJO_PG_CONNECTION_STRING` are set):
 
 | Benchmark | Operation |
 |---|---|
-| GetById | id lookup |
-| FilteredQuery(count) | filtered count |
+| GetById | id lookup of a stable seeded row |
+| FilteredQuery(count) | filtered count (Age > 20) |
 | SortedQuery | filter + order |
 | PaginatedQuery | filter + order + page (count + slice) |
-| Insert | single insert |
-| BulkInsert(100) | 100-row bulk |
-| Update | full update |
-| Delete | soft delete by id |
+| Insert | single insert of a fresh row |
+| BulkInsert(100) | 100-row bulk insert |
+| Update | full update of a stable row |
+| Delete | physical delete by id (the bench entity has no soft-delete model) |
 | Count / Exists | unfiltered count / filtered exists |
-| HardDelete(cleanup) | physical cleanup |
+
+**Self-measuring (no contamination) methodology:**
+- `GlobalSetup` seeds a fixed dataset: 1,000 rows + a 1,300-row delete pool + one
+  update-target row. Pool/target rows use `Age ≤ 20`, so the `Age > 20` filter benchmarks
+  see the identical 780 rows **regardless of benchmark execution order**.
+- `Update` targets the stable row (a real update on every call); `Delete` rotates through
+  the pool and an `[IterationCleanup]` (outside the measured window) re-inserts the just-
+  deleted row, so the table size is constant.
+- `Insert`/`BulkInsert` use fresh ids; `[IterationCleanup]` hard-deletes exactly the rows
+  the last invocation inserted, so the table **never permanently grows** and later
+  benchmarks measure the same dataset. `GlobalCleanup` removes everything.
+- No shared mutable entity is reused across methods (each method owns its target rows),
+  so no method can change what another method measures.
 
 Run: `dotnet run -c Release --project Monjo/benchmarks/Monjo.Benchmarks`.
 **No numbers are reported in this document** — the sandbox cannot build or execute;
@@ -475,8 +523,12 @@ the readiness-gate first-use).
    exception. Multi-database transactions are not modeled (out of scope).
 5. **Legacy Mongo surface is not transaction-aware** (Part 13); new code should use the
    common API inside `BeginTransactionAsync`.
-6. **Numeric SQL ids** (`int`/`long` `Id`) are supported for storage/lookup but **not**
-   auto-generated on insert (explicit value required; `string`/`Guid` are generated).
+6. **Numeric ids** (`int`/`long`/`short`/`byte` `Id`) are supported for storage/lookup but
+   are **not** auto-generated (explicit value required; `string`/`Guid` are generated when
+   `null`; `[BsonId]` ids are driver-generated on Mongo). A numeric id of **`0` is
+   rejected with `MonjoException`** on every provider: it is indistinguishable from
+   "unset" and Monjo deliberately never silently inserts rows under id 0 (deterministic
+   failure beats silent corruption).
 7. **No query-result projections in the common contract** (the legacy Mongo surface
    still projects; a `FindManyAsync(selector)` overload is a likely v1.x addition).
 8. **`MonjoQuery.Operand` is an `object`** (historically string from binding); conversion
@@ -489,6 +541,19 @@ the readiness-gate first-use).
     (unrelated-behavior rule). The `docker-compose.yml` settings
     (`MonjoSettings__ConnectionString` / `MonjoSettings__DatabaseName`) continue to work
     because `AddMonjo` honors the legacy section.
+11. **SQLite decimals are stored as an opaque sortable encoding** (58-char sign-prefixed
+    zero-padded digit string, 9's-complemented for negatives — Part 11). The column is a
+    `TEXT` column; the encoding is exact and numerically ordered, but the raw text is not
+    a decimal literal, so ad-hoc SQL against the column must go through Monjo (or decode
+    the encoding). No data is stored in this format by any pre-existing application
+    (Monjo has not been run against a live database yet), so there is no migration
+    concern.
+12. **Cross-provider semantic differences** are real and documented (not bugs):
+    `Contains` case sensitivity (SQLite case-insensitive for ASCII), PostgreSQL
+    `DateTime` microsecond truncation, `Guid` sort order (SQLite text vs binary),
+    `UpdateColumnsAsync` return meaning (matched rows on SQL vs modified count on Mongo),
+    transaction availability (Mongo replica set only). See the table in
+    `Monjo/docs/ARCHITECTURE.md` (§4) and `Monjo/docs/MIGRATION.md`.
 
 ## Part 23 — Future provider strategy (SQL Server, MySQL, …)
 

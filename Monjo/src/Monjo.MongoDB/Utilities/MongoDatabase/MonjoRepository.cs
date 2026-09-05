@@ -30,7 +30,7 @@ namespace Utilities.MongoDatabase
 
         public MonjoRepository(IMonjoConnection connection)
             : base(
-                connection as Monjo.IMonjoConnection ?? throw new InvalidOperationException(
+                connection as Monjo.MongoDB.MongoMonjoConnection ?? throw new InvalidOperationException(
                     "The injected IMonjoConnection is not a Monjo provider connection. " +
                     "Register the provider with services.UseMonjoMongoDB()."),
                 connection.Database.GetCollection<TDocument>(CollectionName))

@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 
 namespace Monjo.Sql
 {
@@ -27,6 +28,24 @@ namespace Monjo.Sql
         /// value as local time). False when <c>GetDateTime</c> is reliable (PostgreSQL timestamptz).
         /// </summary>
         public abstract bool ReadsDateTimeAsText { get; }
+
+        /// <summary>
+        /// True when decimal columns are stored as text and MUST be read back through
+        /// <see cref="DecodeDecimal"/> (SQLite: stored in the sortable encoding, which is not a
+        /// plain decimal literal). False when the provider has a native numeric type
+        /// (PostgreSQL NUMERIC).
+        /// </summary>
+        public abstract bool ReadsDecimalAsText { get; }
+
+        /// <summary>
+        /// Converts a decimal to its stored database representation (SQLite: the fixed-width
+        /// sortable text encoding; default: pass-through to the native numeric type).
+        /// </summary>
+        public virtual object EncodeDecimal(decimal value) => value;
+
+        /// <summary>Converts the stored database representation back to decimal (inverse of <see cref="EncodeDecimal"/>).</summary>
+        public virtual decimal DecodeDecimal(string stored)
+            => decimal.Parse(stored, CultureInfo.InvariantCulture);
 
         /// <summary>SQL type name for a supported CLR column type.</summary>
         public abstract string GetSqlType(Type clrType);

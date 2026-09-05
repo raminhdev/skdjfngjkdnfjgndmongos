@@ -23,7 +23,7 @@ namespace Monjo.MongoDB
                 token => EnsureIndexesCoreAsync<T>(database, token));
         }
 
-        private static async Task EnsureIndexesCoreAsync<T>(IMongoDatabase database, CancellationToken cancellationToken) where T : class
+        internal static async Task EnsureIndexesCoreAsync<T>(IMongoDatabase database, CancellationToken cancellationToken) where T : class
         {
             var tableName = MongoMonjoConnection.GetTableName(typeof(T));
             var meta = MonjoEntityMetadata.Get<T>();

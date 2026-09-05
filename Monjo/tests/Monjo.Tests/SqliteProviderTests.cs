@@ -35,6 +35,11 @@ namespace Monjo.Tests
             await base.DisposeAsync();
             try
             {
+                // Close every pooled (idle) SQLite connection in the process first: pooled
+                // connections hold the database file open, which would keep the file (and the
+                // WAL/SHM side files) around and leak file handles. Only after the pool is
+                // empty is the file safe to delete.
+                SqliteConnection.ClearAllPools();
                 if (File.Exists(_dbPath)) File.Delete(_dbPath);
                 foreach (var suffix in new[] { "-wal", "-shm" })
                 {

@@ -68,6 +68,29 @@ applications keep compiling, running against the same collections, and behaving 
   enforcement, `MaxConnecting = 1`, 30 s connect/server-selection timeouts,
   decimal → Decimal128 serializers.
 
+## Behavioral notes (deliberate, non-breaking for correctly-written callers)
+
+- **Collection name fallback** — `[MonjoCollectionName]`/`[MonjoTable]` names the
+  collection/table; when a type carries **neither** attribute, the CLR type name is used
+  (the legacy code did the same via `GetTableName`). Nothing changed for types that have
+  the attribute.
+- **Legacy `MonjoRepository<T>` constructor** — the injected `IMonjoConnection` is now
+  checked as the concrete `MongoMonjoConnection`. A non-Monjo connection throws
+  `InvalidOperationException` with an actionable message (previously the same check was
+  impossible to express); a correctly-registered app is unaffected.
+- **Numeric Id `0` is rejected** — `InsertAsync`/`InsertManyAsync`/`UpsertAsync` throw
+  `MonjoException` when a numeric (`int`/`long`/`short`/`byte`) id is `0` (it is
+  indistinguishable from "unset", and Monjo does not generate numeric identifiers). The
+  legacy driver would have stored the document under `_id: 0` silently; new code should
+  treat a zero numeric id as a bug, which it now is, with a clear exception. `string`/`Guid`
+  ids are generated when `null`; `[BsonId]` ids are driver-generated (ObjectId).
+- **Cross-provider semantics** — when switching a codebase to PostgreSQL or SQLite, read
+  the cross-provider differences table in `docs/ARCHITECTURE.md` (§4). The notable ones:
+  `Contains` is case-insensitive on SQLite (ASCII) but case-sensitive on Mongo/PostgreSQL;
+  PostgreSQL truncates `DateTime` to microseconds; SQLite stores decimals in a fixed-width
+  sortable text encoding (exact, numerically comparable); `UpdateColumnsAsync` returns
+  matched rows on SQL but modified count on Mongo; Mongo transactions need a replica set.
+
 ## What changed under the hood (Mongo)
 
 - The connection is `MongoMonjoConnection` (same singleton; also the legacy

@@ -1,7 +1,16 @@
 namespace Monjo
 {
     /// <summary>Base class for provider-independent Monjo errors (configuration, model, capability gaps).</summary>
-    public class MonjoException(string message) : Exception(message);
+    public class MonjoException
+    {
+        public MonjoException(string message) : base(message)
+        {
+        }
+
+        public MonjoException(string message, Exception? innerException) : base(message, innerException)
+        {
+        }
+    }
 
     /// <summary>Thrown when the configured provider has no registration (missing package or missing <c>UseMonjo*</c> call).</summary>
     public sealed class MonjoProviderNotRegisteredException(string message, Exception? innerException = null)

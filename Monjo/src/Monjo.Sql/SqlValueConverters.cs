@@ -31,7 +31,7 @@ namespace Monjo.Sql
         /// Reads one scalar of a known CLR type. Called from the compiled row mapper with the
         /// cached <c>type</c> — a value comparison chain, not reflection.
         /// </summary>
-        public static object Read(DbDataReader reader, int ordinal, Type type, bool nativeGuid, bool dateTimeAsText)
+        public static object Read(DbDataReader reader, int ordinal, Type type, bool nativeGuid, bool dateTimeAsText, SqlDialect dialect)
         {
             if (type == typeof(string)) return reader.GetString(ordinal);
             if (type == typeof(int)) return (int)reader.GetInt64(ordinal);
@@ -41,7 +41,10 @@ namespace Monjo.Sql
             if (type == typeof(bool)) return reader.GetBoolean(ordinal);
             if (type == typeof(double)) return reader.GetDouble(ordinal);
             if (type == typeof(float)) return (float)reader.GetDouble(ordinal);
-            if (type == typeof(decimal)) return reader.GetDecimal(ordinal);
+            if (type == typeof(decimal))
+                return dialect.ReadsDecimalAsText
+                    ? dialect.DecodeDecimal(reader.GetString(ordinal))
+                    : reader.GetDecimal(ordinal);
             if (type == typeof(DateTime))
             {
                 // dateTimeAsText (SQLite): the stored value is UTC text; GetDateTime would apply

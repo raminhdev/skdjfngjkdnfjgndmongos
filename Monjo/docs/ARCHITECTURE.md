@@ -52,7 +52,7 @@ Deliberate choices:
 | `FindManyAsync` | match + optional page, **no count query** (one round-trip) |
 | `QueryAsync` | full `MonjoQuery` → `MonjoFilteredResult<T>` with `TotalCount`/`PageCount` (two round-trips — the only common API that counts) |
 | `CountAsync` / `ExistsAsync` | server-side count / `LIMIT 1` existence probe |
-| `InsertAsync` / `InsertManyAsync` | identifier generated for `string`/`Guid` ids when null |
+| `InsertAsync` / `InsertManyAsync` | identifier generated for `string`/`Guid` ids when null; a numeric id of `0` is rejected with `MonjoException` (see below); `[BsonId]` ids are driver-generated on Mongo |
 | `UpdateAsync` | full-row replace of an existing row; stamps `Modified*` |
 | `UpdateColumnsAsync` | partial update of named columns; stamps `Modified*` unless set |
 | `UpsertAsync` | insert when id missing, full update otherwise (revives soft-deleted rows) |
@@ -65,6 +65,19 @@ Provider-specific APIs stay in provider namespaces:
   cursors, `FindOneAndUpdate`, GridFS access via the legacy `IMonjoConnection.Database`) —
   preserved unchanged in Monjo.MongoDB.
 - SQL: no extra surface in v1; the common contract is the whole surface.
+
+### Identifier generation rule (all providers)
+
+Monjo never invents numeric identifiers (none of the providers can generate them):
+
+- `string` / `Guid` id, value `null` → a new id is generated (`Guid` / "N"-format string) on
+  every provider; on Mongo a `[BsonId]` id (e.g. the legacy `BaseDocument.ObjectId`) is left
+  for the driver to auto-generate.
+- numeric id (`int`/`long`/`short`/`byte`), value `null` → `MonjoException` (deterministic,
+  no silent behavior).
+- numeric id, value `0` → `MonjoException`. A `0` cannot be distinguished from "unset", and
+  silently inserting rows under id `0` would corrupt the identifier space; failing
+  deterministically with a clear message is the intended behavior.
 
 ## 3. Provider resolution (startup, once)
 
@@ -118,6 +131,31 @@ Condition operands are usually strings (JSON model binding). `MonjoOperandConver
 converts them identically for every provider: enum by name, invariant-culture numeric/date
 parsing. Unknown columns fail fast with the entity/table named.
 
+### Cross-provider semantic differences (read this before picking a provider)
+
+The common contract is provider-identical in **semantics** (same filters, same soft-delete
+rules, same result shape), but each provider's storage engine imposes a few differences that
+can matter:
+
+| Area | MongoDB | PostgreSQL | SQLite |
+|---|---|---|---|
+| `Contains`/`NotContains` | `$regex` — **case-sensitive** | `LIKE` — **case-sensitive** | `LIKE` — **case-insensitive for ASCII** (SQLite default; no portable per-query override is used) |
+| `decimal` storage | BSON Decimal128 (exact) | native `NUMERIC(57,28)` (exact) | **fixed-width sortable TEXT encoding** (58 chars: sign bit + 29 int digits + 28 frac digits, 9's-complement for negatives) — exact, and equality/`<`/`>`/`ORDER BY` are numerically correct |
+| `Guid` storage | BSON Guid (binary) | native `uuid` | TEXT in "N" format — equality fine, but `ORDER BY` is lexicographic, not binary |
+| `DateTime` precision | full .NET tick precision (BSON Int64 ticks) | `timestamptz` — **truncated to microseconds** | UTC TEXT — full .NET precision |
+| `bool` storage | BSON bool | `BOOLEAN` | INTEGER `0`/`1` |
+| `enum` storage | Int32 (driver default) | TEXT (member name) | TEXT (member name) |
+| `null` vs missing | a missing BSON field and an explicit `null` both match `IsNull` | column is `NULL` | column is `NULL` |
+| `UpdateColumnsAsync` return | `ModifiedCount` — documents actually changed (a no-op `$set` may count 0) | rows **matched** by the WHERE clause (a no-op update still counts) | rows **matched** by the WHERE clause (a no-op update still counts) |
+| Transactions | require a **replica set**; standalone → `MonjoNotSupportedException` | always available | always available (WAL; a single writer) |
+| Identifier sort order | ObjectId = time-ordered; Guid = 12-byte binary | `uuid` = binary | Guid "N" text = lexicographic |
+| Table/collection naming | unqualified collection name | **unqualified table names** — resolved by the connection's `search_path` (public schema unless configured otherwise) | file is the database; table names are case-folded per SQLite rules (quoted, so exact) |
+
+Where a difference is unavoidable (case sensitivity of `Contains` on SQLite, `Guid` sort
+order, `UpdateColumnsAsync` counting, microsecond truncation on PostgreSQL), Monjo
+**documents it instead of hiding it** — code that depends on one of these must be written
+against the target provider, or normalized in the application layer.
+
 ## 5. Entity metadata
 
 `MonjoEntityMetadata` (Core) — built lazily once per type, cached process-wide, zero
@@ -155,9 +193,11 @@ app bridges `CurrentRequestContext.User`).
   `IMongoCollection<T>` handles. No connections per query (the driver manages them).
 - **PostgreSQL**: Npgsql pooling. Each operation acquires/releases **one pooled
   connection**; a transaction borrows one dedicated pooled connection for its lifetime.
-- **SQLite**: Microsoft.Data.Sqlite pooling + WAL journal mode (set once per database) +
-  busy timeout. Readers stay concurrent; writers are serialized by SQLite (documented
-  behavior for embedded use). `busy`/`locked` map to `MonjoBusyException` with guidance.
+- **SQLite**: Microsoft.Data.Sqlite pooling + WAL journal mode (set once per process per
+  database; the `PRAGMA journal_mode=WAL` statement returns a result row, so it is executed
+  as a reader and the row consumed — never via `ExecuteNonQueryAsync`) + busy timeout.
+  Readers stay concurrent; writers are serialized by SQLite (documented behavior for
+  embedded use). `busy`/`locked` map to `MonjoBusyException` with guidance.
 
 No physical connect in the request hot path for any provider.
 
@@ -181,9 +221,15 @@ transaction-aware — it uses the plain collection handle. Documented limitation
 
 `EnsureEntityReadyAsync<T>()` is gated by `EntityReadinessGate` — an owner-TCS gate keyed
 by provider + database identity + table: the work runs **exactly once per key per process**,
-concurrent callers await the owner, and a failure removes the gate entry so the next call
-retries. After the first run the hot-path cost is one dictionary lookup + awaiting an
-already-completed task.
+concurrent callers join the owner's task, and a failure removes the gate entry so the next
+call retries.
+
+Allocation profile: the per-type gate key (string) and work delegate are cached on the
+connection, once per entity type (the first call builds them). After that, every call's
+fast path is a `ConcurrentDictionary.TryGetValue` on the per-type cache + a
+`TryGetValue` + `IsCompleted` check in the gate — **zero allocations**, no per-call
+lambda, closure or key-string construction. The gate itself allocates one small entry per
+key per process (the first time), never again.
 
 Work performed: SQL → `CREATE TABLE IF NOT EXISTS` + `CREATE [UNIQUE] INDEX IF NOT EXISTS`
 for each declared index (gate key includes the concrete database: the file path for
@@ -216,8 +262,13 @@ query model without changing providers' execution paths.
 ## 11. Hot-path budget (per operation)
 
 - 0 reflection, 0 LINQ-to-provider, 0 per-request expression compilation.
+- Readiness gate: after the first call for a type, 2 dictionary lookups + 1 IsCompleted
+  check — **0 allocations** (see §8).
 - SQL: cached statement text + translated fragment (small strings), N parameters,
-  one pooled connection, one compiled row-mapper delegate per row.
+  one pooled connection, one compiled row-mapper delegate per row. Parameter values are
+  converted through `SqlValueConverters.ToDb` + the dialect (`ToDbValue`) at bind time, so
+  bound values always use the stored representation (enum → name, SQLite Guid → "N",
+  SQLite decimal → the sortable encoding).
 - Mongo: cached selectors + small filter tree, driver-native cursor.
 - Ambient context reads (actor, transaction) are `AsyncLocal` reads — no locks anywhere
   on hot paths.
@@ -226,7 +277,8 @@ query model without changing providers' execution paths.
 
 1. New project `Monjo.SqlServer` (or `Monjo.MySql`) referencing Core + Sql.
 2. Implement a `SqlDialect` subclass: `GetSqlType`, literals, `SupportsNativeGuid`,
-   `ReadsDateTimeAsText`, `CreateConnection`, `ToDbValue`, optional exception mapping.
+   `ReadsDateTimeAsText`, `ReadsDecimalAsText` + `EncodeDecimal`/`DecodeDecimal` (only if
+   decimals are stored as text), `CreateConnection`, `ToDbValue`, optional exception mapping.
 3. A provider class deriving `SqlMonjoProvider` (name + dialect + optional pragmas), a
    `UseMonjoSqlServer()` extension registering the factory. Done — the shared SQL engine
    (translation, row mapping, transactions, readiness gating) is reused unchanged.

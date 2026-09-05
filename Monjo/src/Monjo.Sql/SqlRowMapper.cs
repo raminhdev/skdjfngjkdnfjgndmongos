@@ -60,7 +60,8 @@ namespace Monjo.Sql
                         ord,
                         Expression.Constant(column.Core.NonNullableType),
                         Expression.Constant(dialect.SupportsNativeGuid),
-                        Expression.Constant(dialect.ReadsDateTimeAsText)),
+                        Expression.Constant(dialect.ReadsDateTimeAsText),
+                        Expression.Constant(dialect)),
                     propType);
 
                 Expression read;

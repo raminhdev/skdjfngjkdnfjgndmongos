@@ -62,6 +62,11 @@ namespace Monjo.Tests
             await base.DisposeAsync();
             try
             {
+                // Clear the pooled connections to the test database first: with live pooled
+                // connections PostgreSQL refuses the drop ("database is being accessed by
+                // other users") and the connections would leak.
+                NpgsqlConnection.ClearAllPools();
+
                 using var admin = new NpgsqlConnection(new NpgsqlConnectionStringBuilder(ServerConnectionString)
                 {
                     Database = "postgres",

@@ -148,7 +148,7 @@ namespace Monjo.Tests
             }).Build();
 
             services.AddMonjo(configuration);
-            services.Monjo.MongoDB.MonjoMongoDbServiceCollectionExtensions.UseMonjoMongoDB(services);
+            global::Monjo.MongoDB.MonjoMongoDbServiceCollectionExtensions.UseMonjoMongoDB(services);
 
             using var provider = services.BuildServiceProvider();
             var legacy = provider.GetRequiredService<Utilities.MongoDatabase.Contracts.IMonjoConnection>();

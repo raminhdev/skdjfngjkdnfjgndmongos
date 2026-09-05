@@ -494,7 +494,8 @@ namespace Monjo.Sql
         private void EnsureId(T entity)
         {
             var idMetadata = _meta.Core.Id!;
-            if (idMetadata.Property.GetValue(entity) is null)
+            var current = idMetadata.Property.GetValue(entity);
+            if (current is null)
             {
                 var idType = idMetadata.NonNullableType;
                 object generated = idType == typeof(Guid)
@@ -506,6 +507,15 @@ namespace Monjo.Sql
                             $"{idType.Name} identifiers. Set an explicit Id before inserting " +
                             "(string and Guid identifiers are generated automatically).");
                 idMetadata.Property.SetValue(entity, generated);
+            }
+            else if (current is 0 or (short)0 or (byte)0 or (long)0)
+            {
+                // A numeric 0 cannot be distinguished from "unset", and the SQL providers do not
+                // generate numeric identifiers — inserting 0 would silently create rows under a
+                // bogus id. Fail deterministically with a clear message instead.
+                throw new MonjoException(
+                    $"'{typeof(T).Name}.Id' is 0 and the SQL providers do not generate numeric identifiers. " +
+                    "Set an explicit non-zero Id before inserting (string and Guid identifiers are generated automatically).");
             }
         }
 

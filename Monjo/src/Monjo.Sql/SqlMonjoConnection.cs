@@ -14,6 +14,14 @@ namespace Monjo.Sql
         private readonly SqlMonjoProvider _provider;
         private readonly ConcurrentDictionary<Type, object> _repositories = new();
 
+        /// <summary>
+        /// Per-type readiness state (gate key + work delegate), built once per type. After the
+        /// first call for a type, the hot path of every repository operation costs two
+        /// dictionary lookups and an IsCompleted check — no allocations (no per-call key
+        /// string, lambda or closure).
+        /// </summary>
+        private readonly ConcurrentDictionary<Type, (string Key, Func<CancellationToken, Task> Work)> _readiness = new();
+
         internal SqlMonjoConnection(SqlMonjoProvider provider)
         {
             _provider = provider;
@@ -22,28 +30,38 @@ namespace Monjo.Sql
         public string ProviderName => _provider.Name;
         public string DatabaseName => _provider.DatabaseName;
 
+        /// <summary>The provider dialect — used by operation contexts to convert bound parameter values.</summary>
+        internal SqlDialect Dialect => _provider.Dialect;
+
         public IMonjoRepository<T> CreateRepository<T>() where T : class
             => (IMonjoRepository<T>)_repositories.GetOrAdd(typeof(T), _ => _provider.CreateRepositoryCore<T>());
 
         public Task EnsureEntityReadyAsync<T>(CancellationToken cancellationToken = default) where T : class
         {
-            // Builds (and caches) the SQL plan for the type: mapping errors surface here, not mid-query.
+            if (_readiness.TryGetValue(typeof(T), out var readiness))
+                return EntityReadinessGate.EnsureAsync(readiness.Key, readiness.Work, cancellationToken);
+
+            // First call for this type: builds (and caches) the SQL plan — mapping errors surface
+            // here, not mid-query — and caches the one-time work for the readiness gate.
             var meta = _provider.GetMetadata<T>();
             // The key identifies the concrete database (file for SQLite, DB name for PostgreSQL):
             // DDL belongs to a specific database, never a table name alone.
             var key = _provider.Name + ":" + _provider.DatabaseIdentity + ":" + meta.Core.TableName;
+            var work = new Func<CancellationToken, Task>(token => EnsureWorkAsync<T>(meta, token));
+            _readiness[typeof(T)] = (key, work);
+            return EntityReadinessGate.EnsureAsync(key, work, cancellationToken);
+        }
 
-            return EntityReadinessGate.EnsureAsync(key, async token =>
-            {
-                await _provider.EnsureProviderPragmasAsync(token).ConfigureAwait(false);
+        private async Task EnsureWorkAsync<T>(SqlEntityMetadata meta, CancellationToken cancellationToken)
+        {
+            await _provider.EnsureProviderPragmasAsync(cancellationToken).ConfigureAwait(false);
 
-                if (_provider.Options.AutoCreateSchema)
-                    await _provider.ExecuteDdlAsync(meta.CreateSchemaSql, token).ConfigureAwait(false);
+            if (_provider.Options.AutoCreateSchema)
+                await _provider.ExecuteDdlAsync(meta.CreateSchemaSql, cancellationToken).ConfigureAwait(false);
 
-                if (_provider.Options.AutoCreateIndexes)
-                    foreach (var index in meta.Core.Indexes)
-                        await _provider.ExecuteDdlAsync(meta.BuildIndexSql(index), token).ConfigureAwait(false);
-            }, cancellationToken);
+            if (_provider.Options.AutoCreateIndexes)
+                foreach (var index in meta.Core.Indexes)
+                    await _provider.ExecuteDdlAsync(meta.BuildIndexSql(index), cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<MonjoTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
@@ -65,7 +83,7 @@ namespace Monjo.Sql
             }
 
             return new MonjoTransaction(
-                native: new SqlTransactionBridge(connection, transaction),
+                native: new SqlTransactionBridge(connection, transaction, _provider.Dialect),
                 commit: token => transaction.CommitAsync(token),
                 rollback: token => transaction.RollbackAsync(token),
                 disposeNative: () =>
@@ -86,7 +104,7 @@ namespace Monjo.Sql
         private readonly ConcurrentDictionary<Type, SqlEntityMetadata> _metadata = new();
 
         public MonjoOptions Options { get; }
-        protected SqlDialect Dialect { get; }
+        protected internal SqlDialect Dialect { get; }
         public IMonjoConnection Connection { get; }
 
         /// <summary>Canonical provider name ("PostgreSQL" / "SQLite").</summary>
@@ -139,7 +157,7 @@ namespace Monjo.Sql
         /// Provider-level, once-per-process initialization (e.g. SQLite WAL pragmas).
         /// Must be idempotent and cheap. Default: nothing.
         /// </summary>
-        protected virtual Task EnsureProviderPragmasAsync(CancellationToken cancellationToken)
+        protected internal virtual Task EnsureProviderPragmasAsync(CancellationToken cancellationToken)
             => Task.CompletedTask;
     }
 }

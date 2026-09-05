@@ -43,8 +43,17 @@ namespace Monjo.Tests
             await base.DisposeAsync();
             if (_provider is not null)
             {
-                try { await _provider.Connection.Client.DropDatabaseAsync(_databaseName); }
+                // Drop the test database, then dispose the driver client so its internal
+                // resources (server monitor, connection pool) do not leak per test.
+                try
+                {
+                    await _provider.Connection.Client.DropDatabaseAsync(_databaseName);
+                }
                 catch { /* best effort cleanup */ }
+                finally
+                {
+                    _provider.Connection.Client.Dispose();
+                }
             }
         }
 

@@ -29,6 +29,13 @@ namespace Monjo.MongoDB
         private readonly MonjoOptions _options;
         private readonly ConcurrentDictionary<Type, IMongoCollection> _collections = new();
 
+        /// <summary>
+        /// Per-type readiness state (gate key + work delegate), built once per type per
+        /// connection. After the first call for a type, every repository operation's readiness
+        /// check costs two dictionary lookups and an IsCompleted check — no allocations.
+        /// </summary>
+        private readonly ConcurrentDictionary<Type, (string Key, Func<CancellationToken, Task> Work)> _readiness = new();
+
         public MongoMonjoConnection(MonjoOptions options)
         {
             ArgumentNullException.ThrowIfNull(options);
@@ -78,7 +85,21 @@ namespace Monjo.MongoDB
             => new MongoMonjoRepository<T>(this, GetCollection<T>());
 
         public Task EnsureEntityReadyAsync<T>(CancellationToken cancellationToken = default) where T : class
-            => MongoIndexManager.EnsureIndexesAsync<T>(Database, _options.AutoCreateIndexes);
+        {
+            if (!_options.AutoCreateIndexes)
+                return Task.CompletedTask;
+
+            if (_readiness.TryGetValue(typeof(T), out var readiness))
+                return EntityReadinessGate.EnsureAsync(readiness.Key, readiness.Work, cancellationToken);
+
+            var tableName = GetTableName(typeof(T));
+            // The key includes the database: index creation belongs to a specific database.
+            var key = "MongoDB:" + Database.DatabaseNamespace.DatabaseName + ":" + tableName;
+            var database = Database;
+            var work = new Func<CancellationToken, Task>(token => MongoIndexManager.EnsureIndexesCoreAsync<T>(database, token));
+            _readiness[typeof(T)] = (key, work);
+            return EntityReadinessGate.EnsureAsync(key, work, cancellationToken);
+        }
 
         public async Task<MonjoTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
         {

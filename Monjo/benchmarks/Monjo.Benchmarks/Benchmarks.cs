@@ -8,7 +8,7 @@ using Utilities.MongoDatabase.Filter;
 
 namespace Monjo.Benchmarks
 {
-    /// <summary>Benchmark entity: string id + a few representative columns.</summary>
+    /// <summary>Benchmark entity: string id + a few representative columns (no soft-delete model → deletes are physical).</summary>
     [MonjoTable("BenchPeople")]
     public class BenchPerson
     {
@@ -25,6 +25,18 @@ namespace Monjo.Benchmarks
     /// SQLite always runs; MongoDB / PostgreSQL run when MONGO_CONNECTION_STRING /
     /// MONJO_PG_CONNECTION_STRING are set.
     ///
+    /// Self-measuring design (no contamination between methods, no permanent table growth):
+    ///  - GlobalSetup seeds a fixed 1,000-row dataset + a 1,300-row "delete pool" + one update
+    ///    target row. Pool/target rows use Age ≤ 20 so the Age>20 filter-based benchmarks see
+    ///    the identical 780 rows regardless of benchmark order.
+    ///  - Update targets the stable update row (a real row exists on every call).
+    ///  - Delete rotates through the pool; IterationCleanup (outside measurement) re-inserts the
+    ///    row that was just deleted, so the table size is constant.
+    ///  - Insert / BulkInsert use fresh ids; IterationCleanup hard-deletes exactly the rows the
+    ///    last invocation inserted, so the table never permanently grows and later benchmarks
+    ///    measure the same dataset.
+    ///  - GlobalCleanup removes everything.
+    ///
     /// Run:
     ///   dotnet run -c Release -- --filter "Full"
     ///   dotnet run -c Release -- --filter "GetById" --memory-measurement-mode Mean
@@ -33,16 +45,32 @@ namespace Monjo.Benchmarks
     [SimpleJob(warmupCount: 250, iterationCount: 1000)]
     public class MonjoRepositoryBenchmarks
     {
-        private IMonjoRepository<BenchPerson> _repo = null!;
-        private readonly string _providerName;
-        private readonly BenchPerson _person = new();
+        private const int SeedRows = 1000;
+        private const int DeletePoolSize = 1300;   // > warmup + measured iterations (1250)
+        private const int BulkSize = 100;
+
+        private readonly IMonjoRepository<BenchPerson> _repo;
+        private readonly BenchPerson _updateTarget = new();
+        private readonly string[] _deletePool = new string[DeletePoolSize];
+        private readonly string[] _bulkIds = new string[BulkSize];   // preallocated: zero per-invocation bookkeeping allocations
         private readonly MonjoQuery _filtered;
         private readonly MonjoQuery _sorted;
         private readonly MonjoQuery _paged;
+        private int _deleteIndex;
+        private string _lastDeleteId = null!;
+        private string _lastInsertId = null!;
+        private bool _lastInsertIsBulk;
 
         public MonjoRepositoryBenchmarks(string providerName)
         {
-            _providerName = providerName;
+            _updateTarget.Id = "bench-update";
+            _updateTarget.Name = "update-target";
+            _updateTarget.Age = 1;                    // excluded from the Age>20 filter
+            _updateTarget.Email = "update@example.com";
+            _updateTarget.LastSeen = DateTime.UtcNow;
+
+            for (var i = 0; i < DeletePoolSize; i++)
+                _deletePool[i] = "bench-del-" + i;
 
             var options = providerName switch
             {
@@ -72,12 +100,6 @@ namespace Monjo.Benchmarks
                     : new MonjoPostgreSqlProvider(options))
                 .Connection.CreateRepository<BenchPerson>();
 
-            _person.Id = "bench-1";
-            _person.Name = "bench-name";
-            _person.Age = 42;
-            _person.Email = "bench@example.com";
-            _person.LastSeen = DateTime.UtcNow;
-
             _filtered = new MonjoQuery
             {
                 Where = [[new MonjoCondition { Column = "Age", Comparison = ComparisonMethods.GreaterThan, Operand = "20" }]],
@@ -98,10 +120,14 @@ namespace Monjo.Benchmarks
         [GlobalSetup]
         public async Task SetupAsync()
         {
-            // clean + seed 1,000 rows
+            // Clean slate, then a fixed dataset:
+            //  - 1,000 seed rows (ids 0000000000..0000000999), Age = i % 100 → 780 rows with Age > 20
+            //  - 1,300 delete-pool rows (Age = 0: excluded from every filter benchmark)
+            //  - 1 update-target row (Age = 1: excluded from every filter benchmark)
             await _repo.HardDeleteManyAsync(null);
-            var batch = new List<BenchPerson>(1000);
-            for (var i = 0; i < 1000; i++)
+
+            var batch = new List<BenchPerson>(SeedRows + DeletePoolSize + 1);
+            for (var i = 0; i < SeedRows; i++)
             {
                 batch.Add(new BenchPerson
                 {
@@ -112,6 +138,12 @@ namespace Monjo.Benchmarks
                     LastSeen = DateTime.UtcNow.AddHours(-i),
                 });
             }
+
+            foreach (var poolId in _deletePool)
+                batch.Add(new BenchPerson { Id = poolId, Name = "delete-pool", Age = 0 });
+
+            batch.Add(_updateTarget);
+
             for (var i = 0; i < batch.Count; i += 200)
                 await _repo.InsertManyAsync(batch.GetRange(i, Math.Min(200, batch.Count - i)));
         }
@@ -131,28 +163,50 @@ namespace Monjo.Benchmarks
         [Benchmark(Description = "Insert")]
         public Task<BenchPerson> Insert()
         {
-            _person.Id = Guid.NewGuid().ToString("N");
-            return _repo.InsertAsync(_person);
+            // Fresh id + fresh entity per call (the realistic pattern); the row is hard-deleted
+            // in IterationCleanup so the table never permanently grows.
+            _lastInsertId = Guid.NewGuid().ToString("N");
+            _lastInsertIsBulk = false;
+            var person = new BenchPerson
+            {
+                Id = _lastInsertId,
+                Name = "insert",
+                Age = 0,                               // excluded from the Age>20 filter
+                Email = "insert@example.com",
+                LastSeen = DateTime.UtcNow,
+            };
+            return _repo.InsertAsync(person);
         }
 
         [Benchmark(Description = "BulkInsert(100)")]
         public Task BulkInsert()
         {
-            var batch = new List<BenchPerson>(100);
-            for (var i = 0; i < 100; i++)
-                batch.Add(new BenchPerson { Id = Guid.NewGuid().ToString("N"), Name = "bulk", Age = i % 100 });
+            _lastInsertIsBulk = true;
+            var batch = new List<BenchPerson>(BulkSize);
+            for (var i = 0; i < BulkSize; i++)
+            {
+                _bulkIds[i] = Guid.NewGuid().ToString("N");
+                batch.Add(new BenchPerson { Id = _bulkIds[i], Name = "bulk", Age = 0 });
+            }
             return _repo.InsertManyAsync(batch);
         }
 
         [Benchmark(Description = "Update")]
         public Task Update()
         {
-            _person.Age = _person.Age + 1;
-            return _repo.UpdateAsync(_person);
+            // The stable update-target row exists for the whole run → every call is a real update.
+            _updateTarget.Age = 1;
+            return _repo.UpdateAsync(_updateTarget);
         }
 
         [Benchmark(Description = "Delete")]
-        public Task Delete() => _repo.DeleteAsync(_person.Id);
+        public Task Delete()
+        {
+            // Rotates through the delete pool; every call is a real (physical) delete of an
+            // existing row. IterationCleanup re-inserts the deleted row.
+            _lastDeleteId = _deletePool[_deleteIndex++ % DeletePoolSize];
+            return _repo.DeleteAsync(_lastDeleteId);
+        }
 
         [Benchmark(Description = "Count")]
         public Task<long> Count() => _repo.CountAsync(null);
@@ -160,8 +214,30 @@ namespace Monjo.Benchmarks
         [Benchmark(Description = "Exists")]
         public Task<bool> Exists() => _repo.ExistsAsync(_filtered);
 
-        [Benchmark(Description = "HardDelete(cleanup)")]
-        public Task HardDeleteCleanup() => _repo.HardDeleteManyAsync(null);
+        /// <summary>
+        /// Runs after every iteration, OUTSIDE the measured time/allocation window. Restores the
+        /// dataset to its exact pre-invocation state so no benchmark leaves residue behind.
+        /// </summary>
+        [IterationCleanup]
+        public async Task CleanupIterationAsync()
+        {
+            if (_lastInsertIsBulk)
+            {
+                for (var i = 0; i < BulkSize; i++)
+                    await _repo.HardDeleteAsync(_bulkIds[i]);
+            }
+            else if (_lastInsertId is not null)
+            {
+                await _repo.HardDeleteAsync(_lastInsertId);
+                _lastInsertId = null!;
+            }
+
+            if (_lastDeleteId is not null)
+            {
+                await _repo.InsertAsync(new BenchPerson { Id = _lastDeleteId, Name = "delete-pool", Age = 0 });
+                _lastDeleteId = null!;
+            }
+        }
 
         [GlobalCleanup]
         public Task CleanupAsync() => _repo.HardDeleteManyAsync(null);

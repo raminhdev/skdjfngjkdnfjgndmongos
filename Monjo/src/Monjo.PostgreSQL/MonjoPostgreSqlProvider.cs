@@ -10,6 +10,7 @@ namespace Monjo.PostgreSQL
         public override string TrueLiteral => "TRUE";
         public override bool SupportsNativeGuid => true;
         public override bool ReadsDateTimeAsText => false;
+        public override bool ReadsDecimalAsText => false;
 
         public override string GetSqlType(Type clrType)
             => clrType switch
@@ -22,7 +23,9 @@ namespace Monjo.PostgreSQL
                 _ when clrType == typeof(byte) => "SMALLINT",
                 _ when clrType == typeof(double) => "DOUBLE PRECISION",
                 _ when clrType == typeof(float) => "REAL",
-                _ when clrType == typeof(decimal) => "NUMERIC(28,10)",
+                // Full .NET decimal fidelity: 29 integer digits + 28 fraction digits
+                // (decimal's maximum range/scale) — no silent truncation of user data.
+                _ when clrType == typeof(decimal) => "NUMERIC(57,28)",
                 _ when clrType == typeof(DateTime) => "TIMESTAMP WITH TIME ZONE",
                 _ when clrType == typeof(Guid) => "UUID",
                 _ when clrType == typeof(byte[]) => "BYTEA",

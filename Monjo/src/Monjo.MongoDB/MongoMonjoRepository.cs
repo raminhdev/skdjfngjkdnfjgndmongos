@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Reflection;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using Monjo.Metadata;
@@ -273,15 +274,34 @@ namespace Monjo.MongoDB
             if (id is null)
                 return;
 
-            if (id.Property.GetValue(entity) is null)
+            var current = id.Property.GetValue(entity);
+            if (current is 0 or (short)0 or (byte)0 or (long)0)
+            {
+                // A numeric 0 cannot be distinguished from "unset", and neither provider generates
+                // numeric identifiers — inserting 0 would silently create documents under a bogus
+                // id. Fail deterministically with a clear message instead (rule: never silently
+                // insert 0 for an unset generated numeric Id).
+                throw new MonjoException(
+                    $"'{typeof(T).Name}.Id' is 0 and Monjo does not generate numeric identifiers. " +
+                    "Set an explicit non-zero Id before inserting (string and Guid identifiers are generated automatically).");
+            }
+
+            if (current is null)
             {
                 // Entities whose id carries [BsonId] (e.g. the legacy BaseDocument with ObjectId
-                // representation) let the driver auto-generate; all others get a "N"-format Guid string.
+                // representation) let the driver auto-generate; all others get a Guid (or an
+                // "N"-format Guid string). Numeric types are NOT generated — a clear exception
+                // keeps the behavior deterministic instead of a SetValue type crash.
                 if (id.Property.GetCustomAttribute<BsonIdAttribute>() is null)
                 {
-                    var generated = id.NonNullableType == typeof(Guid)
+                    var idType = id.NonNullableType;
+                    object generated = idType == typeof(Guid)
                         ? Guid.NewGuid()
-                        : Guid.NewGuid().ToString("N");
+                        : idType == typeof(string)
+                            ? Guid.NewGuid().ToString("N")
+                            : throw new MonjoException(
+                                $"'{typeof(T).Name}.Id' is null and Monjo does not generate {idType.Name} identifiers. " +
+                                "Set an explicit non-zero Id before inserting (string and Guid identifiers are generated automatically).");
                     id.Property.SetValue(entity, generated);
                 }
             }
