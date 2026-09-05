@@ -224,7 +224,139 @@ namespace Monjo.Tests
             Assert.Equal(3, slice.Count);
         }
 
-        // ------------------------------------------------------------------ count / exists
+        // ------------------------------------------------------------------ decimal semantics
+    // (regression suite for the per-provider decimal storage: SQLite's sortable TEXT codec,
+    // PostgreSQL NUMERIC(57,28), MongoDB Decimal128 — all must be numerically exact)
+
+    [Fact]
+    public async Task DecimalRoundTripsExactlyIncludingRangeLimits()
+    {
+        decimal[] values =
+        {
+            decimal.MinValue, -99.999m, -1m, 0m, 1m, 9.5m, 10.25m, 12.5m, 12.50m, 99.999m, decimal.MaxValue
+        };
+
+        var people = values.Select(v =>
+        {
+            var p = Person(RunId);
+            p.Balance = v;
+            return p;
+        }).ToList();
+        await Repo.InsertManyAsync(people);
+
+        foreach (var (person, value) in people.Select(p => (p, p.Balance)))
+        {
+            var loaded = await Repo.GetByIdAsync(person.Id);
+            Assert.NotNull(loaded);
+            Assert.Equal(value, loaded.Balance);   // exact round-trip
+        }
+    }
+
+    [Fact]
+    public async Task DecimalComparisonsAreNumericAndScaleInsensitive()
+    {
+        // 12.5 == 12.50 (equality ignores scale); 9.5 < 30; 30 > 9.5
+        var a = Person(RunId); a.Balance = 12.5m;
+        var b = Person(RunId); b.Balance = 12.50m;
+        var c = Person(RunId); c.Balance = 9.5m;
+        var d = Person(RunId); d.Balance = 30m;
+        var e = Person(RunId); e.Balance = 99.999m;
+        await Repo.InsertManyAsync(new[] { a, b, c, d, e });
+
+        // equality: both 12.5 and 12.50 match "12.5"; no row matches "12.51"
+        Assert.Equal(2, await Repo.CountAsync(Query(x => new MonjoCondition
+        {
+            Column = "Balance", Comparison = ComparisonMethods.Equal, Operand = "12.5"
+        })));
+        Assert.Equal(0, await Repo.CountAsync(Query(x => new MonjoCondition
+        {
+            Column = "Balance", Comparison = ComparisonMethods.Equal, Operand = "12.51"
+        })));
+
+        // inequality
+        Assert.Equal(4, await Repo.CountAsync(Query(x => new MonjoCondition
+        {
+            Column = "Balance", Comparison = ComparisonMethods.NotEqual, Operand = "30"
+        })));
+
+        // 9.5 < 30: rows below 30 are 9.5, 12.5, 12.50 (lexicographic TEXT would miscount: "9.5" > "30")
+        Assert.Equal(3, await Repo.CountAsync(Query(x => new MonjoCondition
+        {
+            Column = "Balance", Comparison = ComparisonMethods.LessThan, Operand = "30"
+        })));
+
+        // 30 > 9.5 (rows above 9.5: 12.5, 12.50, 30, 99.999)
+        Assert.Equal(4, await Repo.CountAsync(Query(x => new MonjoCondition
+        {
+            Column = "Balance", Comparison = ComparisonMethods.GreaterThan, Operand = "9.5"
+        })));
+
+        // inclusive bounds cross the scale boundary too: <= 12.5 includes 12.50
+        Assert.Equal(3, await Repo.CountAsync(Query(x => new MonjoCondition
+        {
+            Column = "Balance", Comparison = ComparisonMethods.LessThanOrEqual, Operand = "12.5"
+        })));
+        Assert.Equal(4, await Repo.CountAsync(Query(x => new MonjoCondition
+        {
+            Column = "Balance", Comparison = ComparisonMethods.GreaterThanOrEqual, Operand = "12.5"
+        })));
+    }
+
+    [Fact]
+    public async Task DecimalOrderingIsNumericInBothDirections()
+    {
+        decimal[] values =
+        {
+            decimal.MinValue, -99.999m, -1m, 0m, 1m, 9.5m, 10.25m, 12.5m, 12.50m, 99.999m, decimal.MaxValue
+        };
+
+        var people = values.Select(v =>
+        {
+            var p = Person(RunId);
+            p.Balance = v;
+            return p;
+        }).ToList();
+        await Repo.InsertManyAsync(people);
+
+        var asc = await Repo.FindManyAsync(Query(null, o => new MonjoOrder { Column = "Balance" }));
+        // 12.5 and 12.50 are numerically equal, so their relative order is irrelevant.
+        decimal[] expectedAsc =
+        {
+            decimal.MinValue, -99.999m, -1m, 0m, 1m, 9.5m, 10.25m, 12.5m, 12.5m, 99.999m, decimal.MaxValue
+        };
+        Assert.Equal(expectedAsc, asc.Select(p => p.Balance).ToArray());
+
+        var desc = await Repo.FindManyAsync(Query(null, o => new MonjoOrder { Column = "Balance", Descending = true }));
+        Assert.Equal(expectedAsc.Reverse().ToArray(), desc.Select(p => p.Balance).ToArray());
+    }
+
+    [Fact]
+    public async Task PaginatedQueryOrdersByDecimal()
+    {
+        decimal[] values =
+        {
+            decimal.MinValue, -99.999m, -1m, 0m, 1m, 9.5m, 10.25m, 12.5m, 12.50m, 99.999m, decimal.MaxValue
+        };
+
+        var people = values.Select(v =>
+        {
+            var p = Person(RunId);
+            p.Balance = v;
+            return p;
+        }).ToList();
+        await Repo.InsertManyAsync(people);
+
+        var page2 = await Repo.QueryAsync(Query(null, o => new MonjoOrder { Column = "Balance" }, index: 2, size: 3));
+        Assert.Equal(11, page2.TotalCount);
+        Assert.Equal(4, page2.PageCount);      // ceil(11 / 3)
+        Assert.Equal(3, page2.Data.Count);
+        Assert.Equal(new[] { 0m, 1m, 9.5m }, page2.Data.Select(p => p.Balance).ToArray());
+
+        var lastPage = await Repo.QueryAsync(Query(null, o => new MonjoOrder { Column = "Balance" }, index: 4, size: 3));
+        Assert.Equal(new[] { 99.999m, decimal.MaxValue }, lastPage.Data.Select(p => p.Balance).ToArray());
+    }
+
+    // ------------------------------------------------------------------ count / exists
 
         [Fact]
         public async Task CountAndExistsReflectFilters()

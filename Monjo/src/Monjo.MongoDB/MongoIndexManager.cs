@@ -11,18 +11,11 @@ namespace Monjo.MongoDB
     /// </summary>
     internal static class MongoIndexManager
     {
-        public static Task EnsureIndexesAsync<T>(IMongoDatabase database, bool autoCreateIndexes) where T : class
-        {
-            if (!autoCreateIndexes)
-                return Task.CompletedTask;
-
-            var tableName = MongoMonjoConnection.GetTableName(typeof(T));
-            // The key includes the database: index creation belongs to a specific database.
-            return EntityReadinessGate.EnsureAsync(
-                "MongoDB:" + database.DatabaseNamespace.DatabaseName + ":" + tableName,
-                token => EnsureIndexesCoreAsync<T>(database, token));
-        }
-
+        /// <summary>
+        /// Lists existing indexes once and creates the missing declared ones by name.
+        /// Invoked through the per-type readiness work cached on <c>MongoMonjoConnection</c>
+        /// (gated by <see cref="EntityReadinessGate"/>).
+        /// </summary>
         internal static async Task EnsureIndexesCoreAsync<T>(IMongoDatabase database, CancellationToken cancellationToken) where T : class
         {
             var tableName = MongoMonjoConnection.GetTableName(typeof(T));
